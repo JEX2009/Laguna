@@ -2,130 +2,131 @@ from tkinter import *
 import math as m
 import sqlite3 as s
 import datetime as t
-import os as a
+from os import path
 
-#Variables para usar gets
-DatoDeComoSegano = ""
-PedidorDeCuantoSeGano = 0
+class Aplicacion:
+    def __init__(self, master):
+        self.master = master
+        master.title("VentanaPrincipal")
+        master.geometry("500x500")
+        for i in range(11):
+            master.grid_columnconfigure(i, weight=1)
+            master.grid_rowconfigure(i, weight=1)
 
-# Crea una base de datos junto a su conexion y cursor
-RutaBaseDeDatos = a.path.join("BaseDeDatos.db")  
+        self.RutaBaseDeDatos = path.join("BaseDeDatos.db")
+        self.Conexion = s.connect("BaseDeDatos.db")
+        self.Cursor = self.Conexion.cursor()
+        self.ConfiguracionBaseDatos()
 
-Conexion = s.connect("BaseDeDatos.db")
-Cursor = Conexion.cursor()
+        self.DatoDeComoSeGano = None
+        self.PedidorDeCuantoSeGano = None
+        self.FormaQuePago = None
 
-#Crea una ventana y le ajusta la geometria
-Ventana = Tk()
-Ventana.title("Ventana principal")
-Ventana.geometry("500x500")
-for i in range(11):
-            Ventana.grid_columnconfigure(i,weight=1)
-            Ventana.grid_rowconfigure(i,weight=1)
+        self.Inicio()
 
-#Configura la base de datos  y annade las tablas y columnas 
-# Se cambia   EXISTS <Nombre de tabla> (<Nombre Columna> <Tipo de dato>)
-def ConfiguracionBaseDatos():
-    Cursor.execute('''CREATE TABLE IF NOT EXISTS Ganancias(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha Text, Forma_Ganancia TEXT,Cantidad INTEGER)''')
-    Cursor.execute('''CREATE TABLE IF NOT EXISTS Gastos(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha Text, Forma_Gasto TEXT,Cantidad INTEGER)''')
-    Conexion.commit()
+    def ConfiguracionBaseDatos(self):
+        self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Ganancias(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha TEXT, FormaGanancia TEXT,Cantidad INTEGER, FormaPago TEXT)''')
+        self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Gastos(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha TEXT, FormaGasto TEXT,Cantidad INTEGER)''')
+        self.Conexion.commit()
 
-ConfiguracionBaseDatos()
+    def EliminarWidgets(self):
+        for widget in self.master.winfo_children():
+            widget.destroy()
 
+    def Inicio(self):
+        self.EliminarWidgets()
+        BotonDeAgregarGananciasDeHoy = Button(self.master, text="Agregar ganancias", command=self.VentanaDeAgregarGanancias)
+        BotonDeAgregarGananciasDeHoy.grid(column=0, row=2)
 
-#Funcion para eliminar
-def EliminarWidgets():
-        for widget in Ventana.winfo_children():
-            widget.destroy()   
-
-#Home de la aplicacion
-def Inicio():
-    EliminarWidgets()
-    BotonDeAgregargananciasDeHoy =Button(text= "Agregar ganacias" , command= lambda :VentanaDeAgregarGanancias())
-    BotonDeAgregargananciasDeHoy.grid(column=0 , row =2)
-
-Inicio()
-
-# La interfaz del boton Agregar ganancias
-def VentanaDeAgregarGanancias():
-    EliminarWidgets()
-    global BotonParaPasarALaSiguiente
-    global EstarSeguroQueEligeComoGano
-    global DatoDeComoSegano
-    global PedidorDeCuantoSeGano
-
-    s.register_adapter(t.date, lambda val: val.isoformat())
-
-    TextoParaPedidorDeCuantoSeGano = Label(Ventana, text="Agrega la cantidad que se gano hoy con la forma anterior")
-    TextoParaPedidorDeCuantoSeGano.grid(columnspan= 10, row = 2)
-
-    PedidorDeCuantoSeGano = Entry(Ventana)
-    PedidorDeCuantoSeGano.grid(columnspan=10,row = 3)
-
-    BotonParaPasarALaSiguiente = Button(text= "Continuar", command= lambda:VentanaParaCalcularYAgregarAlBD())
-    BotonParaPasarALaSiguiente.grid(column= 4, row= 5)
-
-    # Crear el Menubutton
-    menu_boton = Menubutton(Ventana, text="Toca aca y elige la opcion de como se gano", bg= "#FFCDC5")  # Texto del botón
-    menu_boton.grid(column=4, row = 1)  # Ajusta pady para la posición vertical
-
-    # Crear el menú
-    menu = Menu(menu_boton, tearoff=0)
-    menu.add_command(label="Cipres", command=lambda: ComoSeGano("Cipres"))  # Se cambia el nombre por las opciones que quieres dar
-    menu.add_command(label="Hoja", command=lambda: ComoSeGano("Hoja"))
-    menu.add_command(label="Esquinera", command=lambda: ComoSeGano("Esquinera"))
-    menu.add_command(label="Suite", command=lambda: ComoSeGano("Suite"))
-    menu.add_command(label="Ensueño", command=lambda: ComoSeGano("Ensueño"))
-    menu.add_command(label="Gloria", command=lambda: ComoSeGano("Gloria"))
-    menu.add_command(label="Villa Torre", command=lambda: ComoSeGano("Villa Torre"))
-    menu.add_command(label="Chalet", command=lambda: ComoSeGano("Chalet"))
-    menu.add_command(label="Zona Verde", command=lambda: ComoSeGano("Zona Verde"))
-
-    # Asignar el menú al Menubutton
-    menu_boton["menu"] = menu
-    
-    # Bloque la opcion de pulsar el boton sin haber elegido una opcion del  menu
-    if DatoDeComoSegano == "":  
-        EstarSeguroQueEligeComoGano = Label(Ventana, text= "Elige una opcion de ganancia",bg = "red")
-        EstarSeguroQueEligeComoGano.grid(columnspan= 10, row= 4)
-        BotonParaPasarALaSiguiente.config(state=DISABLED)
-
-# Se obtiene los datos del menu que se van a insertar y se activa el boton
-def ComoSeGano(Dato):
-    
-    EstarSeguroQueEligeComoGano.destroy()
-
-    BotonParaPasarALaSiguiente.grid(column= 4, row= 4)
-    DatoDeComoSegano = Dato
-    BotonParaPasarALaSiguiente.config(state=NORMAL)
-
-# Se obtienen el resto de datos 
-def VentanaParaCalcularYAgregarAlBD():
-    try:        
-        DiaDeHoy = t.date.today()
-        CuantoSeGano = PedidorDeCuantoSeGano.get()
-        CuantoSeGano = float(CuantoSeGano)
-        Cursor.execute("INSERT INTO Ganancias (Fecha,Forma_Ganancia,Cantidad) VALUES (?,?,?)",(DiaDeHoy,DatoDeComoSegano,CuantoSeGano)) #INTO  <Nombre tabla> (<Columnas a la que se va a agrega>)
-        Conexion.commit()
+    def VentanaDeAgregarGanancias(self):
+        self.EliminarWidgets()
         
-        EliminarWidgets()
-    
-        Label(Ventana, text= "Se quiere seguir agregando ganancias?").grid( columnspan=10 ,row=2)
-    
-        Button(Ventana,text= "Si", command=lambda: VentanaDeAgregarGanancias()).grid( column= 6,row=4)
-        Button(Ventana,text= "No", command=lambda: Inicio()).grid( column= 3,row=4)
-    except ValueError: # Si acaso se le ocurre  poner letras
-        EliminarWidgets()
-        Label(Ventana, text = "Ocurrio un error no puedes poner letras en ese espacio").grid(column= 2, row= 2)
-        Ventana.update()
-        Ventana.after(3000, VentanaDeAgregarGanancias())
-    except e: # En caso que la base de datos falle
-        EliminarWidgets()
-        Label(Ventana, text = "Ocurrio un error con la base de datos intente reiniciar y si no contacte con el programador").grid(column= 2, row= 2)
-        Ventana.update()
-        Ventana.after(3000, Inicio())
-        
+        s.register_adapter(t.date, lambda val: val.isoformat())
 
-    
+        TextoParaPedidorDeCuantoSeGano = Label(self.master, text="Agrega la cantidad que se gano hoy con la forma anterior")
+        TextoParaPedidorDeCuantoSeGano.grid(columnspan=10, row=3)
 
-Ventana.mainloop()
+        self.PedidorDeCuantoSeGano = Entry(self.master)
+        self.PedidorDeCuantoSeGano.grid(columnspan=10, row=4)
 
+        # Crear el Menubutton para la forma de ganancia
+        menuBotonGanancia = Menubutton(self.master, text="Toca aca y elige la opcion de como se gano", bg="#FFCDC5")
+        menuBotonGanancia.grid(column=4, row=1)
+
+        # Crear el menú para la forma de ganancia
+        menuGanancia = Menu(menuBotonGanancia, tearoff=0)
+        opcionesGanancia = ["Cipres", "Hoja", "Esquinera", "Suite", "Ensueño", "Gloria", "Villa Torre", "Chalet", "Zona Verde"]
+        for opcion in opcionesGanancia:
+            menuGanancia.add_command(label=opcion, command=lambda op=opcion: self.ComoSeGano(op))
+        menuBotonGanancia["menu"] = menuGanancia
+
+        # Crear el Menubutton para la forma de pago
+        menuBotonPago = Menubutton(self.master, text="Toca aca y elige la forma de como se pago", bg="#FFCDC5")
+        menuBotonPago.grid(column=4, row=2)
+
+        # Crear el menú para la forma de pago
+        menuPago = Menu(menuBotonPago, tearoff=0)
+        opcionesPago = ["Efectivo", "SinpeMovil", "Transferencia", "Tarjeta"]
+        for opcion in opcionesPago:
+            menuPago.add_command(label=opcion, command=lambda op=opcion: self.ComoSePago(op))
+        menuBotonPago["menu"] = menuPago
+
+        # Bloquear el botón de continuar hasta que se seleccionen ambas opciones
+        self.BotonParaPasarALaSiguiente = Button(self.master, text="Continuar", command=self.VentanaParaCalcularYAgregarAlBD, state=DISABLED)
+        self.BotonParaPasarALaSiguiente.grid(column=4, row=6)
+
+        self.EstarSeguroQueEligeComoGano = Label(self.master, text="Elige una opcion de ganancia y como pago", bg="red")
+        self.EstarSeguroQueEligeComoGano.grid(columnspan=10, row=5)
+
+        self.DatosFormaQuePago = Label(self.master, text="")
+        self.DatosFormaQuePago.grid(column=2, row=0)
+
+        self.DatosComoSePago = Label(self.master, text="")
+        self.DatosComoSePago.grid(column=4, row=0)
+
+    def ComoSePago(self, Dato):
+        self.FormaQuePago = Dato
+        self.DatosComoSePago.config(text=self.FormaQuePago)
+        self.ActivarBotonContinuar()
+
+    def ComoSeGano(self, Dato):
+        self.DatoDeComoSeGano = Dato
+        self.DatosFormaQuePago.config(text=self.DatoDeComoSeGano)
+        self.ActivarBotonContinuar()
+
+    def ActivarBotonContinuar(self):
+        if self.DatoDeComoSeGano is not None and self.FormaQuePago is not None:
+            self.EstarSeguroQueEligeComoGano.destroy()
+            self.BotonParaPasarALaSiguiente.config(state=NORMAL)
+            self.BotonParaPasarALaSiguiente.grid(column=4, row=5)
+
+    def VentanaParaCalcularYAgregarAlBD(self):
+        try:
+            DiaDeHoy = t.date.today()
+            CuantoSeGano = self.PedidorDeCuantoSeGano.get()
+            CuantoSeGano = float(CuantoSeGano)
+            self.Cursor.execute("INSERT INTO Ganancias (Fecha,FormaGanancia,Cantidad,FormaPago) VALUES (?,?,?,?)", (DiaDeHoy, self.DatoDeComoSeGano, CuantoSeGano, self.FormaQuePago))
+            self.Conexion.commit()
+
+            self.EliminarWidgets()
+
+            Label(self.master, text="Se quiere seguir agregando ganancias?").grid(columnspan=10, row=2)
+
+            Button(self.master, text="Si", command=self.VentanaDeAgregarGanancias).grid(column=6, row=4)
+            Button(self.master, text="No", command=self.Inicio).grid(column=3, row=4)
+
+        except ValueError:  # Si acaso se le ocurre  poner letras
+            self.EliminarWidgets()
+            Label(self.master, text="Ocurrio un error no puedes poner letras o dejar en blanco el espacio de cuanto se gano").grid(column=2, row=2)
+            self.master.update()
+            self.master.after(3000, self.VentanaDeAgregarGanancias)
+        except Exception as e:  # En caso que la base de datos falle
+            self.EliminarWidgets()
+            Label(self.master, text="Ocurrio un error con la base de datos intente reiniciar y si no contacte con el programador").grid(column=2, row=2)
+            self.master.update()
+            self.master.after(3000, self.Inicio)
+
+
+root = Tk()
+app = Aplicacion(root)
+root.mainloop()

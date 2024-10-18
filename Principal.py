@@ -38,6 +38,9 @@ class Aplicacion:
         BotonDeAgregarGananciasDeHoy = Button(self.master, text="Agregar ganancias", command=self.VentanaDeAgregarGanancias)
         BotonDeAgregarGananciasDeHoy.grid(column=0, row=2)
 
+        BotonAgregarCostosDeHoy = Button(self.master, text="Agregar costos", command=self.VentanaAgregarCostosDeHoy)
+        BotonAgregarCostosDeHoy.grid(column = 8, row= 2)
+
     def VentanaDeAgregarGanancias(self):
         self.EliminarWidgets()
         
@@ -84,6 +87,9 @@ class Aplicacion:
         self.DatosComoSePago = Label(self.master, text="")
         self.DatosComoSePago.grid(column=4, row=0)
 
+        self.Salida = Button(self.master, text="Volver",command=self.Inicio)
+        self.Salida.grid(column=11, row= 0)
+
     def ComoSePago(self, Dato):
         self.FormaQuePago = Dato
         self.DatosComoSePago.config(text=self.FormaQuePago)
@@ -94,7 +100,7 @@ class Aplicacion:
         self.DatosFormaQuePago.config(text=self.DatoDeComoSeGano)
         self.ActivarBotonContinuar()
 
-    def ActivarBotonContinuar(self):
+    def ActivarBotonContinuar(self ):
         if self.DatoDeComoSeGano is not None and self.FormaQuePago is not None:
             self.EstarSeguroQueEligeComoGano.destroy()
             self.BotonParaPasarALaSiguiente.config(state=NORMAL)
@@ -105,6 +111,9 @@ class Aplicacion:
             DiaDeHoy = t.date.today()
             CuantoSeGano = self.PedidorDeCuantoSeGano.get()
             CuantoSeGano = float(CuantoSeGano)
+            if self.FormaQuePago == "Tarjeta":
+                CuantoSeGano = CuantoSeGano * (1 - 13 / 100) 
+
             self.Cursor.execute("INSERT INTO Ganancias (Fecha,FormaGanancia,Cantidad,FormaPago) VALUES (?,?,?,?)", (DiaDeHoy, self.DatoDeComoSeGano, CuantoSeGano, self.FormaQuePago))
             self.Conexion.commit()
 
@@ -117,14 +126,73 @@ class Aplicacion:
 
         except ValueError:  # Si acaso se le ocurre  poner letras
             self.EliminarWidgets()
+
             Label(self.master, text="Ocurrio un error no puedes poner letras o dejar en blanco el espacio de cuanto se gano").grid(column=2, row=2)
             self.master.update()
+
             self.master.after(3000, self.VentanaDeAgregarGanancias)
         except Exception as e:  # En caso que la base de datos falle
             self.EliminarWidgets()
+
             Label(self.master, text="Ocurrio un error con la base de datos intente reiniciar y si no contacte con el programador").grid(column=2, row=2)
             self.master.update()
+
             self.master.after(3000, self.Inicio)
+
+    def VentanaAgregarCostosDeHoy(self):
+        self.EliminarWidgets()
+        Label(self.master, text= "Agrega el nombre del gasto ej: Jairo, Pequeño mundo, brenes, luz, etc.. ").grid(columnspan=10,row=1)
+        self.TipoDeGasto = Entry(self.master)
+        self.TipoDeGasto.grid(columnspan=10, row=2)
+
+        Label(self.master, text= "De cuanto fue el gasto?").grid(columnspan=10, row=3)
+        self.CantidadDeGasto = Entry(self.master)
+        self.CantidadDeGasto.grid(columnspan= 10 ,row=4)
+
+        self.BotonParaPasarSiguiente = Button(self.master, text="Continuar", command=self.VentanaParaAgregarGastoBD)
+        self.BotonParaPasarSiguiente.grid(column=4, row=6)
+
+        self.Salida = Button(self.master, text="Volver",command=self.Inicio)
+        self.Salida.grid(column=11, row= 0)
+
+    def VentanaParaAgregarGastoBD(self):
+        try:
+            
+            DiaDeHoy = t.date.today().isoformat()
+            self.DatoTipoDeGasto = self.TipoDeGasto.get()
+
+            self.DatoCantidadDeGasto = self.CantidadDeGasto.get()
+            self.DatoCantidadDeGasto = float(self.DatoCantidadDeGasto)
+            
+            self.Cursor.execute("INSERT INTO Gastos (Fecha,FormaGasto,Cantidad) VALUES (?,?,?)", (DiaDeHoy, self.DatoTipoDeGasto, self.DatoCantidadDeGasto))
+            self.Conexion.commit()
+
+            self.EliminarWidgets()
+
+            Label(self.master, text="Se quiere seguir agregando costos?").grid(columnspan=10, row=2)
+
+            Button(self.master, text="Si", command=self.VentanaAgregarCostosDeHoy).grid(column=6, row=4)
+            Button(self.master, text="No", command=self.Inicio).grid(column=3, row=4)
+
+        except ValueError:
+            self.EliminarWidgets()
+
+            Label(self.master, text="Ocurrio un error no puedes poner letras o dejar en blanco el espacio de cuanto se gasto").grid(column=2, row=2)
+            self.master.update()
+
+            self.master.after(3000, self.VentanaDeAgregarGanancias)
+        except Exception as e:  # En caso que la base de datos falle
+            print(e)
+            self.EliminarWidgets()
+
+            Label(self.master, text="Ocurrio un error con la base de datos intente reiniciar y si no contacte con el programador").grid(column=2, row=2)
+            self.master.update()
+
+            self.master.after(3000, self.Inicio)
+
+
+
+
 
 
 root = Tk()

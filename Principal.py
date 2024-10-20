@@ -2,6 +2,7 @@ from tkinter import *
 import math as m
 import sqlite3 as s
 import datetime as t
+from tkinter import ttk as k
 from os import path
 
 # Clase principal de la aplicación
@@ -41,6 +42,9 @@ class Aplicacion:
         # Crear la tabla de Gastos si no existe
         self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Gastos(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha TEXT, FormaGasto TEXT,Cantidad INTEGER)''')
         self.Conexion.commit()
+        #Crea la tabla Mensual si no existe
+        self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Mensual(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha TEXT, Cantidad INTEGER)''')
+        self.Conexion.commit()
 
     # Elimina todos los widgets de la ventana
     def EliminarWidgets(self):
@@ -51,20 +55,69 @@ class Aplicacion:
     def Inicio(self):
         self.EliminarWidgets()
         
+        #Se pone aca para que se actualice y se guarde
+        self.Contador = 0
+
+
+        self.MandarAlarma("Ganancias")
+        self.MandarAlarma("Gastos")
+        VariableDeAlarma = self.MandarAlarma("Mensual")
+        
         # Botón para agregar ganancias
         BotonDeAgregarGananciasDeHoy = Button(self.master, text="Agregar ganancias", command=self.VentanaDeAgregarGanancias)
-        BotonDeAgregarGananciasDeHoy.grid(column=2, row=2)
+        BotonDeAgregarGananciasDeHoy.grid(column=2, row=3)
 
         # Botón para agregar costos
         BotonAgregarCostosDeHoy = Button(self.master, text="Agregar costos", command=self.VentanaAgregarCostosDeHoy)
-        BotonAgregarCostosDeHoy.grid(column=8, row=2)
+        BotonAgregarCostosDeHoy.grid(column=8, row=3)
 
         # Botón para hacer un reporte
         BotonHacerReporte = Button(self.master, text="Hacer reporte", command=self.VentanaSeleccionReporte)
         BotonHacerReporte.grid(column=2, row=6)
 
         
+        if VariableDeAlarma == True:
+            BotonCuantoParaCadaQuien =  Button(self.master,text= "Cuanto a cada uno", command= self.DivisionCapital)
+            BotonCuantoParaCadaQuien.grid(column=8 , row = 6)
 
+    def MandarAlarma(self,Tabla):
+        #Se obtiene fecha
+        Hoy = t.date.today()
+        Hoy = Hoy.strftime("%d/%m/%Y")
+
+        #Se selecciona la tabla
+        self.Cursor.execute(f"SELECT Fecha FROM {Tabla} ")
+        Resultados = self.Cursor.fetchall()
+        
+        Encontrado = False
+
+        #Se recorre para encontrar la fecha de hoy
+        for i in Resultados:
+            j = i[0]
+            if j == Hoy:
+                Encontrado = True 
+                break 
+        
+        #Se actualiza contador dependiendo de la condicion
+        if Encontrado == True and self.Contador >= 0:
+            self.Contador -= 1
+            if self.Contador < 0:
+                self.Contador = 0
+        elif Encontrado == False :
+            self.Contador += 1
+            if self.Contador > 2:
+                self.Contador = 0
+        
+
+        #Se crea el label dependiendo de la tabla
+        Tabla = Tabla.lower()
+        texto = f"Falta agregar {Tabla} del dia"
+        if Tabla == "mensual":
+            texto = f"Falta hacer el reporte del mes"
+        if Encontrado == False:
+            Label(self.master,text= texto).grid(columnspan=10, row=self.Contador)
+        
+        return Encontrado
     # Ventana para agregar ganancias del día
     def VentanaDeAgregarGanancias(self):
         self.EliminarWidgets()
@@ -255,6 +308,9 @@ class Aplicacion:
         BotonReporteMensual = Button(self.master, text="Reporte Mensual", command=self.VentanaReporteMensual)
         BotonReporteMensual.grid(column=8, row=2)
 
+        #Boton para mostrar antiguos mensuales
+        BotonAntiguosMensuales = Button(self.master, text="Ganancias mensuales pasadas", command=self.MensualesPasadas)
+        BotonAntiguosMensuales.grid(column=2, row=6)
         self.Salida = Button(self.master, text="Volver", command=self.Inicio)
         self.Salida.grid(column=11, row=0)
         
@@ -349,20 +405,20 @@ class Aplicacion:
         self.EliminarWidgets()
 
         # Obtener la fecha actual y el inicio del mes
-        self.PrimerDiaMes = t.datetime.now()
+        self.Hoy = t.datetime.now()
         # Calcular el primer día del mes anterior
-        self.PrimerDiaMesPasado = t.date(self.PrimerDiaMes.year, self.PrimerDiaMes.month, 1) - t.timedelta(days=1)
+        self.PrimerDiaMesPasado = t.date(self.Hoy.year, self.Hoy.month, 1) - t.timedelta(days=1)
         self.PrimerDiaMesPasado = self.PrimerDiaMesPasado.replace(day=1)
 
         # Formatear las fechas
-        self.PrimerDiaMes = self.PrimerDiaMes.strftime("%d/%m/%Y")
+        self.Hoy = self.Hoy.strftime("%d/%m/%Y")
         self.PrimerDiaMesPasado = self.PrimerDiaMesPasado.strftime("%d/%m/%Y")
 
         # Diccionario para almacenar las ganancias por categoría
         Diccionario = dict.fromkeys(["Cipres", "Hoja", "Esquinera", "Suite", "Ensueño", "Gloria", "Villa Torre", "Chalet", "Zona Verde"], 0)
 
-        # Consultar la base de datos para obtener las ganancias de la semana
-        self.Cursor.execute(f"SELECT FormaGanancia, Cantidad FROM Ganancias WHERE Fecha BETWEEN '{self.PrimerDiaMesPasado}' AND '{self.PrimerDiaMes}'")
+        # Consultar la base de datos para obtener las ganancias del mes
+        self.Cursor.execute(f"SELECT FormaGanancia, Cantidad FROM Ganancias WHERE Fecha BETWEEN '{self.PrimerDiaMesPasado}' AND '{self.Hoy}'")
         Resultados = self.Cursor.fetchall()
 
         # Sumar las ganancias de cada categoría
@@ -379,10 +435,10 @@ class Aplicacion:
             self.TotalDeGananciasMensual.append(Diccionario.get(i))
             Label(self.master, text=f"Con {i} se ganó {Diccionario.get(i)}").grid(columnspan=10, row=Fila)
             Fila += 1
-        # Mostrar el total de ganancias de la semana
-        Label(self.master, text=f"Desde {self.InicoSemana} hasta el {self.Hoy} se ganó en total {sum(self.TotalDeGananciasMensual)}").grid(columnspan=10, row=Fila)
+        # Mostrar el total de ganancias del mes
+        Label(self.master, text=f"Desde {self.PrimerDiaMesPasado} hasta el {self.Hoy} se ganó en total {sum(self.TotalDeGananciasMensual)}").grid(columnspan=10, row=Fila)
 
-        # Botón para mostrar los costos semanales
+        # Botón para mostrar los costos mensuales
         BotonParaMostrarCostos = Button(self.master, text="Mostrar costos", command=self.VentanaReporteMensualCostos)
         BotonParaMostrarCostos.grid(column=11, row=Fila)
 
@@ -394,7 +450,7 @@ class Aplicacion:
         Diccionario = {}
 
         # Consultar la base de datos para obtener los costos de la semana
-        self.Cursor.execute(f"SELECT FormaGasto, Cantidad FROM Gastos WHERE Fecha BETWEEN '{self.PrimerDiaMesPasado}' AND '{self.PrimerDiaMes}'")
+        self.Cursor.execute(f"SELECT FormaGasto, Cantidad FROM Gastos WHERE Fecha BETWEEN '{self.PrimerDiaMesPasado}' AND '{self.Hoy}'")
         Resultados = self.Cursor.fetchall()
 
         # Sumar los costos de cada categoría
@@ -409,12 +465,12 @@ class Aplicacion:
         Fila = 0
         self.TotalDeGastosMensual = []
         for i in Diccionario:
-            self.TotalDeGastos.append(Diccionario.get(i))
+            self.TotalDeGastosMensual.append(Diccionario.get(i))
             Label(self.master, text=f"En {i} se gastó {Diccionario.get(i)}").grid(columnspan=10, row=Fila)
             Fila += 1
 
         # Mostrar el total de gastos de la semana
-        Label(self.master, text=f"Desde {self.InicoSemana} hasta el {self.Hoy} se gastó en total {sum(self.TotalDeGastosMensual)}").grid(columnspan=10, row=Fila)
+        Label(self.master, text=f"Desde {self.PrimerDiaMesPasado} hasta el {self.Hoy} se gastó en total {sum(self.TotalDeGastosMensual)}").grid(columnspan=10, row=Fila)
 
         # Botón para mostrar el balance total (ganancias - costos)
         BotonParaMostrarTotales = Button(self.master, text="Mostrar total", command=self.VentanaReporteMensualTotal)
@@ -426,17 +482,48 @@ class Aplicacion:
 
         # Calcular el balance general
         TotalGeneral = sum(self.TotalDeGananciasMensual) - sum(self.TotalDeGastosMensual)
-
+        TotalGeneral = float(TotalGeneral)
+        Hoy = self.Hoy
+        
         # Mostrar el balance final en la interfaz
-        Label(self.master, text=f"Desde {self.PrimerDiaMesPasado} hasta el {self.PrimerDiaMes} se obtuvo un total de {TotalGeneral}").grid(columnspan=10, row=5)
+        Label(self.master, text=f"Desde {self.PrimerDiaMesPasado} hasta el {self.Hoy} se obtuvo un total de {TotalGeneral}").grid(columnspan=10, row=5)
+        
+        self.Cursor.execute("INSERT INTO Mensual (Fecha,Cantidad) VALUES (?, ?)", (self.Hoy, TotalGeneral))
+        self.Conexion.commit()
 
         # Botón para salir y volver al menú principal
         Salir = Button(self.master, text="Salir", command=self.Inicio)
         Salir.grid(column=11, row=0)
 
+    # Mostrar los meses pasados
+    def MensualesPasadas(self):
+        self.EliminarWidgets()
+        
+        #Se crea una tabla
+        Tabla = k.Treeview(self.master,columns=("Mes","Cantidad Ganada"),show="headings")
 
+        self.Cursor.execute("SELECT * FROM Mensual")
+        Resultados = self.Cursor.fetchall()
+        #Se abre la tabla 
+        Tabla.heading("Mes" , text= "Mes")
+        Tabla.heading("Cantidad Ganada" , text= "Cantidad Ganada")
 
+        for i in Resultados:
+            #Se agregan los datos como mes y cantidad
+            Tabla.insert("",END, values= (i[1],i[2]))
+        Tabla.pack()
 
+        self.Salida = Button(self.master, text="Volver", command=self.Inicio)
+        self.Salida.pack()
+
+    def DivisionCapital(self):
+        Hoy = t.date.today()
+        Hoy = Hoy.strftime("%d/%m/%Y")
+
+        self.Cursor.execute(f"SELECT Cantidad FROM Mensual WHERE Fecha >= '{Hoy}' ")
+        Resultados = self.Cursor.fetchall() 
+        if i[0] == Hoy:
+            Cant
 
 
 root = Tk()

@@ -43,7 +43,7 @@ class Aplicacion:
         self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Gastos(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha TEXT, FormaGasto TEXT,Cantidad INTEGER)''')
         self.Conexion.commit()
         #Crea la tabla Mensual si no existe
-        self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Mensual(id INTEGER PRIMARY KEY AUTOINCREMENT,Fecha TEXT, Cantidad INTEGER)''')
+        self.Cursor.execute('''CREATE TABLE IF NOT EXISTS Mensual(id INTEGER PRIMARY KEY AUTOINCREMENT,Mes TEXT, Fecha TEXT, Cantidad INTEGER)''')
         self.Conexion.commit()
 
     # Elimina todos los widgets de la ventana
@@ -81,43 +81,80 @@ class Aplicacion:
             BotonCuantoParaCadaQuien.grid(column=8 , row = 6)
 
     def MandarAlarma(self,Tabla):
-        #Se obtiene fecha
-        Hoy = t.date.today()
-        Hoy = Hoy.strftime("%d/%m/%Y")
+        if Tabla == "Ganancias" or Tabla == "Gastos":
+            #Se obtiene fecha
+            Hoy = t.date.today()
+            Hoy = Hoy.strftime("%d/%m/%Y")
 
-        #Se selecciona la tabla
-        self.Cursor.execute(f"SELECT Fecha FROM {Tabla} ")
-        Resultados = self.Cursor.fetchall()
-        
-        Encontrado = False
+            #Se selecciona la tabla
+            self.Cursor.execute(f"SELECT Fecha FROM {Tabla} ")
+            Resultados = self.Cursor.fetchall()
 
-        #Se recorre para encontrar la fecha de hoy
-        for i in Resultados:
-            j = i[0]
-            if j == Hoy:
-                Encontrado = True 
-                break 
-        
-        #Se actualiza contador dependiendo de la condicion
-        if Encontrado == True and self.Contador >= 0:
-            self.Contador -= 1
-            if self.Contador < 0:
-                self.Contador = 0
-        elif Encontrado == False :
-            self.Contador += 1
-            if self.Contador > 2:
-                self.Contador = 0
-        
+            Encontrado = False
 
-        #Se crea el label dependiendo de la tabla
-        Tabla = Tabla.lower()
-        texto = f"Falta agregar {Tabla} del dia"
-        if Tabla == "mensual":
-            texto = f"Falta hacer el reporte del mes"
-        if Encontrado == False:
-            Label(self.master,text= texto).grid(columnspan=10, row=self.Contador)
-        
-        return Encontrado
+            #Se recorre para encontrar la fecha de hoy
+            for i in Resultados:
+                j = i[0]
+                if j == Hoy:
+                    Encontrado = True 
+                    break 
+                
+            #Se actualiza contador dependiendo de la condicion
+            if Encontrado == True and self.Contador >= 0:
+                self.Contador -= 1
+                if self.Contador < 0:
+                    self.Contador = 0
+            elif Encontrado == False :
+                self.Contador += 1
+                if self.Contador > 2:
+                    self.Contador = 0
+
+
+            #Se crea el label dependiendo de la tabla
+            Tabla = Tabla.lower()
+            texto = f"Falta agregar {Tabla} del dia"
+            if Encontrado == False:
+                Label(self.master,text= texto).grid(columnspan=10, row=self.Contador)
+
+            return Encontrado
+        else:
+            Hoy = t.date.today()
+            MesYAnio = Hoy.strftime("%B")
+            NombreMes = {"January": "Enero","February": "Febrero","March": "Marzo","April": "Abril","May": "Mayo","June": "Junio","July": "Julio","August": "Agosto","September": "Septiembre","October": "Octubre","November": "Noviembre","December": "Diciembre"}
+            
+            Hoy2 = t.date.today()
+            HoyNumeros = Hoy2.strftime("%d/%m/%Y")
+            self.Cursor.execute(f"SELECT Mes, Fecha FROM {Tabla} ")
+            Resultados = self.Cursor.fetchall()
+
+            Encontrado = False
+
+            #Se recorre para encontrar la fecha de hoy
+            MesEspaniol = NombreMes[MesYAnio]
+            for i in Resultados:
+                NombreDelMes = i[0]
+                FechaDelMes = i[1]
+                if NombreDelMes == MesEspaniol :
+                    if FechaDelMes[-1: -4] == HoyNumeros[-1: -4]:
+                        Encontrado = True 
+                        break 
+            
+            #Se actualiza contador dependiendo de la condicion
+            if Encontrado == True and self.Contador >= 0:
+                self.Contador -= 1
+                if self.Contador < 0:
+                    self.Contador = 0
+            elif Encontrado == False :
+                self.Contador += 1
+                if self.Contador > 2:
+                    self.Contador = 0
+
+
+            #Se crea el label dependiendo de la tabla
+            Tabla = Tabla.lower()
+            texto = "Falta hacer el reporte del mes"
+            if Encontrado == False:
+                Label(self.master,text= texto).grid(columnspan=10, row=self.Contador)
     # Ventana para agregar ganancias del día
     def VentanaDeAgregarGanancias(self):
         self.EliminarWidgets()
@@ -483,12 +520,19 @@ class Aplicacion:
         # Calcular el balance general
         TotalGeneral = sum(self.TotalDeGananciasMensual) - sum(self.TotalDeGastosMensual)
         TotalGeneral = float(TotalGeneral)
-        Hoy = self.Hoy
         
+        Hoy = t.datetime.today()
+        HoyNumeros = t.datetime.today()
+        MesNombre = Hoy.strftime("%B")
+        HoyNumeros = HoyNumeros.strftime("%d/%m/%Y")
+
         # Mostrar el balance final en la interfaz
-        Label(self.master, text=f"Desde {self.PrimerDiaMesPasado} hasta el {self.Hoy} se obtuvo un total de {TotalGeneral}").grid(columnspan=10, row=5)
+        Label(self.master, text=f"Desde {self.PrimerDiaMesPasado} hasta el {HoyNumeros} se obtuvo un total de {TotalGeneral}").grid(columnspan=10, row=5)
         
-        self.Cursor.execute("INSERT INTO Mensual (Fecha,Cantidad) VALUES (?, ?)", (self.Hoy, TotalGeneral))
+        NombreMes = {"January": "Enero","February": "Febrero","March": "Marzo","April": "Abril","May": "Mayo","June": "Junio","July": "Julio","August": "Agosto","September": "Septiembre","October": "Octubre","November": "Noviembre","December": "Diciembre"}
+        
+
+        self.Cursor.execute("INSERT INTO Mensual (Fecha,Cantidad,Mes) VALUES (?, ?,?)", (self.Hoy, TotalGeneral, NombreMes[MesNombre]))
         self.Conexion.commit()
 
         # Botón para salir y volver al menú principal
@@ -517,13 +561,23 @@ class Aplicacion:
         self.Salida.pack()
 
     def DivisionCapital(self):
+        self.EliminarWidgets()
+
         Hoy = t.date.today()
         Hoy = Hoy.strftime("%d/%m/%Y")
 
-        self.Cursor.execute(f"SELECT Cantidad FROM Mensual WHERE Fecha >= '{Hoy}' ")
+        self.Cursor.execute(f"SELECT Fecha, Cantidad FROM Mensual WHERE Fecha >= '{Hoy}' ")
         Resultados = self.Cursor.fetchall() 
-        if i[0] == Hoy:
-            Cant
+        
+        Label(self.master, text= "A cuantos colones esta un dolar?").grid(columnspan=10, row=2)
+        ValorDelDolarHoy = Entry(self.master)
+        ValorDelDolarHoy.grid(columnspan= 10,row = 3)
+
+        
+
+        #for i in Resultados:
+        #    if Hoy == i[0]:
+
 
 
 root = Tk()
